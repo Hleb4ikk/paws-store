@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
-import { ShoppingCart, PawPrint, Menu } from 'lucide-react';
+import { ShoppingCart, PawPrint, Menu, Search } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export default function Header() {
@@ -26,6 +26,9 @@ export default function Header() {
 
           {/* Right */}
           <div className="flex items-center gap-4">
+            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="Search">
+              <Search size={20} className="text-gray-700" />
+            </button>
             <Link to="/cart" className="p-2 hover:bg-gray-100 rounded-full transition-colors relative" aria-label="Cart">
               <ShoppingCart size={20} className="text-gray-700" />
               {totalItems > 0 && (
