@@ -42,7 +42,8 @@ export default function Shop() {
 
   const handleAdd = (e, id) => {
     e.preventDefault();
-    addToCart(id);
+    const product = products.find(p => p.id === id);
+    addToCart(id, 1, product?.name);
     setAdded(id);
     setTimeout(() => setAdded(null), 1200);
   };

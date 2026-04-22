@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Trash2, ShoppingBag, Minus, Plus, Tag, Truck, MapPin, ChevronRight, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import { products } from '../data/products';
+import { useState } from 'react';
 
 export default function Cart() {
   const { cart, removeFromCart, updateQty } = useCart();
+  const { addToast } = useToast();
 
   const items = cart
     .map(i => { const p = products.find(p => p.id === i.id); return p ? { ...p, qty: i.qty } : null; })
@@ -16,6 +19,15 @@ export default function Cart() {
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
   const freeShippingThreshold = 50;
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
+
+  const [promoCode, setPromoCode] = useState('');
+
+  const handleApplyPromo = () => {
+    if (promoCode.trim()) {
+      addToast('Promo code applied successfully!', 'promo');
+      setPromoCode('');
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -139,7 +151,7 @@ export default function Cart() {
                           <p className="text-xs sm:text-sm text-gray-500">{item.category}</p>
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => removeFromCart(item.id, item.name)}
                           className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
                           aria-label="Remove item"
                         >
@@ -208,9 +220,14 @@ export default function Cart() {
                     <input
                       type="text"
                       placeholder="Enter code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
                       className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs sm:text-sm"
                     />
-                    <button className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-bold text-xs sm:text-sm whitespace-nowrap">
+                    <button 
+                      onClick={handleApplyPromo}
+                      className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-bold text-xs sm:text-sm whitespace-nowrap"
+                    >
                       Apply
                     </button>
                   </div>

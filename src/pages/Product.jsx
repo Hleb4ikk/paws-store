@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import Slider from 'react-slick';
-import { ChevronRight, Minus, Plus, ShoppingCart, ArrowLeft, ArrowRight, Check, Tag } from 'lucide-react';
+import { ChevronRight, Minus, Plus, ShoppingCart, ArrowLeft, ArrowRight, Check, Tag, ChevronLeft } from 'lucide-react';
 import { products } from '../data/products';
 import { useCart } from '../context/CartContext';
 import Stars from '../components/Stars';
@@ -13,6 +12,7 @@ export default function Product() {
   const { addToCart } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   if (!product) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -23,18 +23,8 @@ export default function Product() {
     </div>
   );
 
-  const sliderSettings = {
-    dots: true,
-    infinite: product.images.length > 1,
-    speed: 400,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    arrows: true,
-    className: 'product-slider',
-  };
-
   const handleAdd = () => {
-    addToCart(product.id, qty);
+    addToCart(product.id, qty, product.name);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
@@ -42,6 +32,21 @@ export default function Product() {
   const idx = products.findIndex(p => p.id === product.id);
   const prev = products[idx - 1];
   const next = products[idx + 1];
+
+  const images = product.images || [];
+  const hasMultipleImages = images.length > 1;
+
+  const goToPrevImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === 0 ? images.length - 1 : prevIndex - 1
+    );
+  };
+
+  const goToNextImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === images.length - 1 ? 0 : prevIndex + 1
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -60,18 +65,72 @@ export default function Product() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
           {/* Gallery */}
           <div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6 overflow-hidden">
-              <Slider {...sliderSettings}>
-                {product.images.map((img, i) => (
-                  <div key={i}>
-                    <img
-                      src={img}
-                      alt={`${product.name} - Image ${i + 1}`}
-                      className="w-full aspect-square object-cover rounded-lg"
-                    />
+            <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6 overflow-hidden relative">
+              {images.length > 0 ? (
+                <>
+                  {/* Main Image */}
+                  <div className="relative overflow-hidden rounded-lg">
+                    <div className="relative w-full aspect-square">
+                      {images.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - Image ${index + 1}`}
+                          className={`absolute inset-0 w-full h-full object-cover rounded-lg transition-all duration-500 ease-in-out ${
+                            index === currentImageIndex
+                              ? 'opacity-100 translate-x-0'
+                              : index < currentImageIndex
+                              ? 'opacity-0 -translate-x-full'
+                              : 'opacity-0 translate-x-full'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Navigation Arrows */}
+                    {hasMultipleImages && (
+                      <>
+                        <button
+                          onClick={goToPrevImage}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all z-10 hover:scale-110"
+                          aria-label="Previous image"
+                        >
+                          <ChevronLeft size={24} className="text-gray-800" />
+                        </button>
+                        <button
+                          onClick={goToNextImage}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all z-10 hover:scale-110"
+                          aria-label="Next image"
+                        >
+                          <ChevronRight size={24} className="text-gray-800" />
+                        </button>
+                      </>
+                    )}
                   </div>
-                ))}
-              </Slider>
+
+                  {/* Dots Indicator */}
+                  {hasMultipleImages && (
+                    <div className="flex justify-center gap-2 mt-4">
+                      {images.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            index === currentImageIndex
+                              ? 'bg-orange-500 w-6'
+                              : 'bg-gray-300 hover:bg-gray-400 w-2'
+                          }`}
+                          aria-label={`Go to image ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                  <p className="text-gray-400">No images available</p>
+                </div>
+              )}
             </div>
             {/* Prev/Next nav */}
             <div className="flex items-center justify-between mt-4">
@@ -111,23 +170,25 @@ export default function Product() {
             </div>
 
             {/* Price */}
-            <div className="text-4xl font-bold text-gray-900 mb-6">${product.price.toFixed(2)}</div>
+            <div className="text-4xl font-bold text-orange-500 mb-6">${product.price.toFixed(2)}</div>
 
             {/* Highlights */}
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-100 mb-6">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Tag size={16} className="text-orange-500" />
-                Key Highlights
-              </h3>
-              <ul className="space-y-2">
-                {product.highlights.map((h, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <Check size={14} className="text-orange-500 mt-0.5 flex-shrink-0" />
-                    {h}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {product.highlights && product.highlights.length > 0 && (
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-100 mb-6">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Tag size={16} className="text-orange-500" />
+                  Key Highlights
+                </h3>
+                <ul className="space-y-2">
+                  {product.highlights.map((h, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                      <Check size={14} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Description */}
             <div className="mb-6">
@@ -170,25 +231,36 @@ export default function Product() {
                 <><ShoppingCart size={18} /> Add to Cart</>
               )}
             </button>
-          </div>
-        </div>
 
-        {/* Technical Specifications */}
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Technical Specifications</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {product.specs.map((spec, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-lg p-4 border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all duration-200 group"
-              >
-                <div className="bg-orange-50 p-2 rounded-lg group-hover:bg-orange-100 transition-colors w-fit mb-3">
-                  <span className="text-xl">{spec.icon}</span>
+            {/* Technical Specifications */}
+            {product.specs && product.specs.length > 0 && (
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 mt-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                  <div className="bg-orange-100 p-2 rounded-lg">
+                    <span className="text-white text-xl">📦</span>
+                  </div>
+                  Technical Specifications
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {product.specs.map((spec, i) => (
+                    <div
+                      key={i}
+                      className="bg-white rounded-lg p-4 border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all duration-200 group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="bg-orange-50 p-2 rounded-lg group-hover:bg-orange-100 transition-colors flex-shrink-0">
+                          <span className="text-xl">{spec.icon}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{spec.label}</p>
+                          <p className="font-semibold text-gray-900 text-sm">{spec.value}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{spec.label}</p>
-                <p className="font-semibold text-gray-900 text-sm">{spec.value}</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
