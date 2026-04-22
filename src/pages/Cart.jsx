@@ -3,7 +3,7 @@ import { Trash2, ShoppingBag, Minus, Plus, Tag, Truck, MapPin, ChevronRight, Che
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { products } from '../data/products';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Cart() {
   const { cart, removeFromCart, updateQty } = useCart();
@@ -13,20 +13,68 @@ export default function Cart() {
     .map(i => { const p = products.find(p => p.id === i.id); return p ? { ...p, qty: i.qty } : null; })
     .filter(Boolean);
 
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+
+  // Загружаем примененный промокод из localStorage при монтировании
+  useEffect(() => {
+    try {
+      const savedPromo = localStorage.getItem('appliedPromo');
+      if (savedPromo) {
+        setAppliedPromo(JSON.parse(savedPromo));
+      }
+    } catch (error) {
+      console.error('Error loading promo from localStorage:', error);
+    }
+  }, []);
+
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const tax = subtotal * 0.08; // 8% tax
-  const total = subtotal + tax;
+  
+  // Применяем скидку если есть промокод
+  const discount = appliedPromo ? subtotal * (appliedPromo.discount / 100) : 0;
+  const subtotalAfterDiscount = subtotal - discount;
+  
+  const tax = subtotalAfterDiscount * 0.08; // 8% tax
+  const total = subtotalAfterDiscount + tax;
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
   const freeShippingThreshold = 50;
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
 
-  const [promoCode, setPromoCode] = useState('');
-
   const handleApplyPromo = () => {
-    if (promoCode.trim()) {
-      addToast('Promo code applied successfully!', 'promo');
-      setPromoCode('');
+    const code = promoCode.trim().toUpperCase();
+    
+    if (!code) {
+      addToast('Please enter a promo code', 'error');
+      return;
     }
+
+    // Проверяем, не применен ли уже промокод
+    if (appliedPromo) {
+      addToast(`Promo code "${appliedPromo.code}" is already applied!`, 'error');
+      return;
+    }
+
+    // Проверяем валидность промокода
+    if (code === 'SAVE10') {
+      const promoData = {
+        code: 'SAVE10',
+        discount: 10,
+        appliedAt: new Date().toISOString()
+      };
+      
+      setAppliedPromo(promoData);
+      localStorage.setItem('appliedPromo', JSON.stringify(promoData));
+      addToast('Promo code SAVE10 applied! You saved 10%', 'promo');
+      setPromoCode('');
+    } else {
+      addToast('Invalid promo code', 'error');
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    localStorage.removeItem('appliedPromo');
+    addToast('Promo code removed', 'remove');
   };
 
   if (items.length === 0) {
@@ -52,7 +100,7 @@ export default function Cart() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex flex-col grow bg-white">
       {/* Header and Banner Section with bottom shadow */}
       <div className="shadow-md pb-8 z-100 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 lg:py-12 ">
@@ -94,7 +142,7 @@ export default function Cart() {
         </div>
 
         {/* Free shipping banner */}
-        <div className="bg-orange-50 max-w-[1216px] bg-gradient-to-r from-orange-50 to-pink-50 mx-auto px-4 sm:px-6 lg:px-8 py-4 rounded-xl border border-orange-100">
+        <div className="bg-orange-50 max-w-7xl bg-gradient-to-r from-orange-50 to-pink-50 mx-auto px-4 sm:px-6 lg:px-8 py-4 rounded-xl border border-orange-100">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Tag size={16} className="text-orange-500 flex-shrink-0" />
@@ -117,7 +165,7 @@ export default function Cart() {
       </div>
 
       {/* Main Content */}
-      <div className='bg-gradient-to-br from-orange-50 via-white to-pink-50 px-4 sm:px-6 lg:px-8 pb-8 pt-8'>
+      <div className='grow bg-gradient-to-br from-orange-50 via-white to-pink-50 px-4 sm:px-6 lg:px-8 pb-8 pt-8'>
             
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
@@ -216,21 +264,51 @@ export default function Cart() {
                     <Tag size={14} className="sm:w-4 sm:h-4 text-orange-500" />
                     Promo Code
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Enter code"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs sm:text-sm"
-                    />
-                    <button 
-                      onClick={handleApplyPromo}
-                      className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-bold text-xs sm:text-sm whitespace-nowrap"
-                    >
-                      Apply
-                    </button>
-                  </div>
+                  
+                  {appliedPromo ? (
+                    // Показываем примененный промокод
+                    <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 sm:p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check size={16} className="text-white" />
+                          </div>
+                          <div>
+                            <p className="text-xs sm:text-sm font-bold text-green-900">
+                              {appliedPromo.code}
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-green-700">
+                              {appliedPromo.discount}% discount applied
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleRemovePromo}
+                          className="text-green-700 hover:text-red-600 transition-colors text-xs sm:text-sm font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // Показываем поле ввода
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter code (e.g., SAVE10)"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
+                        className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs sm:text-sm uppercase"
+                      />
+                      <button 
+                        onClick={handleApplyPromo}
+                        className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-bold text-xs sm:text-sm whitespace-nowrap"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Price Breakdown */}
@@ -239,6 +317,18 @@ export default function Cart() {
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
                   </div>
+                  
+                  {appliedPromo && (
+                    <div className="flex justify-between text-xs sm:text-sm">
+                      <span className="text-green-600 font-medium">
+                        Discount ({appliedPromo.discount}%)
+                      </span>
+                      <span className="font-semibold text-green-600">
+                        -${discount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-gray-600">Tax (8%)</span>
                     <span className="font-semibold text-gray-900">${tax.toFixed(2)}</span>
