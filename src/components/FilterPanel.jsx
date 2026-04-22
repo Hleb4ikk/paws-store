@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { products } from '../data/products';
 
 const MAX_PRICE = Math.max(...products.map(p => p.price));
