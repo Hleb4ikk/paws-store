@@ -5,6 +5,139 @@ import { useToast } from '../context/ToastContext';
 import { products } from '../data/products';
 import { useState, useEffect } from 'react';
 
+// Компонент для шагов прогресса
+const ProgressStep = ({ number, label, isActive }) => (
+  <div className="flex items-center gap-1.5 sm:gap-2">
+    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0 ${
+      isActive 
+        ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white' 
+        : 'bg-gray-200 text-gray-500'
+    }`}>
+      {number}
+    </div>
+    <span className={`text-xs sm:text-sm whitespace-nowrap ${
+      isActive ? 'font-semibold text-gray-900' : 'font-medium text-gray-400'
+    }`}>
+      {label}
+    </span>
+  </div>
+);
+
+// Компонент для карточки товара в корзине
+const CartItem = ({ item, updateQty, removeFromCart }) => (
+  <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6">
+    <div className="flex gap-3 sm:gap-6">
+      {/* Product Image */}
+      <Link to={`/product/${item.id}`} className="flex-shrink-0">
+        <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-gray-100">
+          <img 
+            src={item.image} 
+            alt={item.name} 
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
+          />
+        </div>
+      </Link>
+      
+      {/* Product Info */}
+      <div className="flex-1 flex flex-col justify-between min-w-0">
+        <div>
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <Link 
+                to={`/product/${item.id}`} 
+                className="font-bold text-sm sm:text-base text-gray-900 hover:text-orange-500 transition-colors block mb-1 line-clamp-2"
+              >
+                {item.name}
+              </Link>
+              <p className="text-xs sm:text-sm text-gray-500">{item.category}</p>
+            </div>
+            <button
+              onClick={() => removeFromCart(item.id, item.name)}
+              className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+              aria-label="Remove item"
+            >
+              <Trash2 size={18} className="sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Quantity and Price */}
+        <div className="flex items-center justify-between mt-3 sm:mt-4 gap-3">
+          {/* Quantity Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2">
+            <button
+              onClick={() => updateQty(item.id, item.qty - 1)}
+              className="text-gray-600 hover:text-orange-500 transition-colors"
+            >
+              <Minus size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+            <span className="font-bold text-gray-900 min-w-[1.5rem] text-center text-sm sm:text-base">
+              {item.qty}
+            </span>
+            <button
+              onClick={() => updateQty(item.id, item.qty + 1)}
+              className="text-gray-600 hover:text-orange-500 transition-colors"
+            >
+              <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+          </div>
+          
+          {/* Price */}
+          <div className="text-right">
+            <p className="text-lg sm:text-2xl font-bold text-orange-500">
+              ${(item.price * item.qty).toFixed(2)}
+            </p>
+            <p className="text-[10px] sm:text-xs text-gray-500">
+              ${item.price.toFixed(2)} each
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Компонент для информационной карточки
+const InfoCard = ({ icon: Icon, iconBg, textBg, title, subtitle }) => (
+  <div className={`flex items-center gap-2 sm:gap-3 ${textBg} rounded-xl p-3 sm:p-4`}>
+    <div className={`w-8 h-8 sm:w-10 sm:h-10 ${iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
+      <Icon size={16} className="sm:w-5 sm:h-5 text-white" />
+    </div>
+    <div>
+      <p className={`text-xs sm:text-sm font-bold ${iconBg.replace('bg-', 'text-').replace('-500', '-900')}`}>
+        {title}
+      </p>
+      <p className={`text-[10px] sm:text-xs ${iconBg.replace('bg-', 'text-').replace('-500', '-700')}`}>
+        {subtitle}
+      </p>
+    </div>
+  </div>
+);
+
+// Компонент для строки расчета
+const PriceRow = ({ label, value, isDiscount = false, isTotal = false }) => (
+  <div className={`flex justify-between ${isTotal ? 'items-center' : 'text-xs sm:text-sm'}`}>
+    <span className={
+      isTotal 
+        ? 'font-bold text-gray-900 text-base sm:text-lg'
+        : isDiscount 
+        ? 'text-green-600 font-medium' 
+        : 'text-gray-600'
+    }>
+      {label}
+    </span>
+    <span className={
+      isTotal 
+        ? 'text-xl sm:text-2xl font-bold text-orange-500'
+        : isDiscount 
+        ? 'font-semibold text-green-600' 
+        : 'font-semibold text-gray-900'
+    }>
+      {value}
+    </span>
+  </div>
+);
+
 export default function Cart() {
   const { cart, removeFromCart, updateQty } = useCart();
   const { addToast } = useToast();
@@ -77,6 +210,42 @@ export default function Cart() {
     addToast('Promo code removed', 'remove');
   };
 
+  // Данные для шагов прогресса
+  const progressSteps = [
+    { number: 1, label: 'Cart', isActive: true },
+    { number: 2, label: 'Checkout', isActive: false },
+    { number: 3, label: 'Complete', isActive: false }
+  ];
+
+  // Данные для информационных карточек
+  const infoCards = [
+    {
+      icon: Truck,
+      iconBg: 'bg-blue-500',
+      textBg: 'bg-blue-50',
+      title: 'Delivery Time',
+      subtitle: '3-5 business days'
+    },
+    {
+      icon: MapPin,
+      iconBg: 'bg-purple-500',
+      textBg: 'bg-purple-50',
+      title: 'Shipping To',
+      subtitle: '123 Main Street, NY 10001'
+    }
+  ];
+
+  // Данные для расчетов
+  const priceBreakdown = [
+    { label: 'Subtotal', value: `$${subtotal.toFixed(2)}` },
+    ...(appliedPromo ? [{ 
+      label: `Discount (${appliedPromo.discount}%)`, 
+      value: `-$${discount.toFixed(2)}`,
+      isDiscount: true 
+    }] : []),
+    { label: 'Tax (8%)', value: `$${tax.toFixed(2)}` }
+  ];
+
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
@@ -117,26 +286,14 @@ export default function Cart() {
             
             {/* Progress Steps */}
             <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 text-white flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0">
-                  1
+              {progressSteps.map((step, index) => (
+                <div key={step.number} className="flex items-center gap-1.5 sm:gap-2">
+                  <ProgressStep {...step} />
+                  {index < progressSteps.length - 1 && (
+                    <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                  )}
                 </div>
-                <span className="text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">Cart</span>
-              </div>
-              <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0">
-                  2
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-gray-400 whitespace-nowrap">Checkout</span>
-              </div>
-              <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0">
-                  3
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-gray-400 whitespace-nowrap">Complete</span>
-              </div>
+              ))}
             </div>
           </div>
         </div>
@@ -166,226 +323,127 @@ export default function Cart() {
 
       {/* Main Content */}
       <div className='grow bg-gradient-to-br from-orange-50 via-white to-pink-50 px-4 sm:px-6 lg:px-8 pb-8 pt-8'>
-            
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
-          {/* Items List */}
-          <div className="lg:col-span-3 space-y-4 sm:space-y-6">
-            {items.map(item => (
-              <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6">
-                <div className="flex gap-3 sm:gap-6">
-                  {/* Product Image */}
-                  <Link to={`/product/${item.id}`} className="flex-shrink-0">
-                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-gray-100">
-                      <img 
-                        src={item.image} 
-                        alt={item.name} 
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
-                      />
-                    </div>
-                  </Link>
-                  
-                  {/* Product Info */}
-                  <div className="flex-1 flex flex-col justify-between min-w-0">
-                    <div>
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex-1 min-w-0">
-                          <Link 
-                            to={`/product/${item.id}`} 
-                            className="font-bold text-sm sm:text-base text-gray-900 hover:text-orange-500 transition-colors block mb-1 line-clamp-2"
-                          >
-                            {item.name}
-                          </Link>
-                          <p className="text-xs sm:text-sm text-gray-500">{item.category}</p>
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(item.id, item.name)}
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                          aria-label="Remove item"
-                        >
-                          <Trash2 size={18} className="sm:w-5 sm:h-5" />
-                        </button>
-                      </div>
-                    </div>
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+            {/* Items List */}
+            <div className="lg:col-span-3 space-y-4 sm:space-y-6">
+              {items.map(item => (
+                <CartItem 
+                  key={item.id} 
+                  item={item} 
+                  updateQty={updateQty} 
+                  removeFromCart={removeFromCart} 
+                />
+              ))}
+            </div>
+
+            {/* Order Summary Sidebar */}
+            <div className="lg:col-span-2">
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden lg:sticky lg:top-24 shadow-lg">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-orange-500 to-pink-500 px-4 sm:px-6 py-4 sm:py-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Order Summary</h2>
+                  <p className="text-white/90 text-xs sm:text-sm mt-1">
+                    {totalQty} item{totalQty !== 1 ? 's' : ''} in your bag
+                  </p>
+                </div>
+                
+                {/* Content */}
+                <div className="p-4 sm:p-6">
+                  {/* Promo Code */}
+                  <div className="mb-4 sm:mb-6">
+                    <label className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-900 mb-2 sm:mb-3">
+                      <Tag size={14} className="sm:w-4 sm:h-4 text-orange-500" />
+                      Promo Code
+                    </label>
                     
-                    {/* Quantity and Price */}
-                    <div className="flex items-center justify-between mt-3 sm:mt-4 gap-3">
-                      {/* Quantity Controls */}
-                      <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2">
-                        <button
-                          onClick={() => updateQty(item.id, item.qty - 1)}
-                          className="text-gray-600 hover:text-orange-500 transition-colors"
-                        >
-                          <Minus size={16} className="sm:w-[18px] sm:h-[18px]" />
-                        </button>
-                        <span className="font-bold text-gray-900 min-w-[1.5rem] text-center text-sm sm:text-base">
-                          {item.qty}
-                        </span>
-                        <button
-                          onClick={() => updateQty(item.id, item.qty + 1)}
-                          className="text-gray-600 hover:text-orange-500 transition-colors"
-                        >
-                          <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
-                        </button>
-                      </div>
-                      
-                      {/* Price */}
-                      <div className="text-right">
-                        <p className="text-lg sm:text-2xl font-bold text-orange-500">
-                          ${(item.price * item.qty).toFixed(2)}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-500">
-                          ${item.price.toFixed(2)} each
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Order Summary Sidebar */}
-          <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden lg:sticky lg:top-24 shadow-lg">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-orange-500 to-pink-500 px-4 sm:px-6 py-4 sm:py-6">
-                <h2 className="text-lg sm:text-xl font-bold text-white">Order Summary</h2>
-                <p className="text-white/90 text-xs sm:text-sm mt-1">
-                  {totalQty} item{totalQty !== 1 ? 's' : ''} in your bag
-                </p>
-              </div>
-              
-              {/* Content */}
-              <div className="p-4 sm:p-6">
-                {/* Promo Code */}
-                <div className="mb-4 sm:mb-6">
-                  <label className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-900 mb-2 sm:mb-3">
-                    <Tag size={14} className="sm:w-4 sm:h-4 text-orange-500" />
-                    Promo Code
-                  </label>
-                  
-                  {appliedPromo ? (
-                    // Показываем примененный промокод
-                    <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check size={16} className="text-white" />
+                    {appliedPromo ? (
+                      // Показываем примененный промокод
+                      <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 sm:p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                              <Check size={16} className="text-white" />
+                            </div>
+                            <div>
+                              <p className="text-xs sm:text-sm font-bold text-green-900">
+                                {appliedPromo.code}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-green-700">
+                                {appliedPromo.discount}% discount applied
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs sm:text-sm font-bold text-green-900">
-                              {appliedPromo.code}
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-green-700">
-                              {appliedPromo.discount}% discount applied
-                            </p>
-                          </div>
+                          <button
+                            onClick={handleRemovePromo}
+                            className="text-green-700 hover:text-red-600 transition-colors text-xs sm:text-sm font-medium"
+                          >
+                            Remove
+                          </button>
                         </div>
-                        <button
-                          onClick={handleRemovePromo}
-                          className="text-green-700 hover:text-red-600 transition-colors text-xs sm:text-sm font-medium"
+                      </div>
+                    ) : (
+                      // Показываем поле ввода
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter code (e.g., SAVE10)"
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
+                          className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs sm:text-sm uppercase"
+                        />
+                        <button 
+                          onClick={handleApplyPromo}
+                          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-bold text-xs sm:text-sm whitespace-nowrap"
                         >
-                          Remove
+                          Apply
                         </button>
                       </div>
-                    </div>
-                  ) : (
-                    // Показываем поле ввода
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter code (e.g., SAVE10)"
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                        onKeyPress={(e) => e.key === 'Enter' && handleApplyPromo()}
-                        className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-xs sm:text-sm uppercase"
-                      />
-                      <button 
-                        onClick={handleApplyPromo}
-                        className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-bold text-xs sm:text-sm whitespace-nowrap"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                {/* Price Breakdown */}
-                <div className="space-y-2 sm:space-y-3 pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-gray-200">
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
+                  {/* Price Breakdown */}
+                  <div className="space-y-2 sm:space-y-3 pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-gray-200">
+                    {priceBreakdown.map((row, index) => (
+                      <PriceRow key={index} {...row} />
+                    ))}
                   </div>
                   
-                  {appliedPromo && (
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-green-600 font-medium">
-                        Discount ({appliedPromo.discount}%)
-                      </span>
-                      <span className="font-semibold text-green-600">
-                        -${discount.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-600">Tax (8%)</span>
-                    <span className="font-semibold text-gray-900">${tax.toFixed(2)}</span>
+                  {/* Total */}
+                  <div className="mb-4 sm:mb-6">
+                    <PriceRow 
+                      label="Total" 
+                      value={`$${total.toFixed(2)}`} 
+                      isTotal 
+                    />
                   </div>
-                </div>
-                
-                {/* Total */}
-                <div className="flex justify-between items-center mb-4 sm:mb-6">
-                  <span className="font-bold text-gray-900 text-base sm:text-lg">Total</span>
-                  <span className="text-xl sm:text-2xl font-bold text-orange-500">
-                    ${total.toFixed(2)}
-                  </span>
-                </div>
 
-                {/* Delivery Info Cards */}
-                <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-                  {/* Delivery Time */}
-                  <div className="flex items-center gap-2 sm:gap-3 bg-blue-50 rounded-xl p-3 sm:p-4">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Truck size={16} className="sm:w-5 sm:h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm font-bold text-blue-900">Delivery Time</p>
-                      <p className="text-[10px] sm:text-xs text-blue-700">3-5 business days</p>
-                    </div>
+                  {/* Delivery Info Cards */}
+                  <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                    {infoCards.map((card, index) => (
+                      <InfoCard key={index} {...card} />
+                    ))}
                   </div>
-                  
-                  {/* Shipping Address */}
-                  <div className="flex items-center gap-2 sm:gap-3 bg-purple-50 rounded-xl p-3 sm:p-4">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin size={16} className="sm:w-5 sm:h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm font-bold text-purple-900">Shipping To</p>
-                      <p className="text-[10px] sm:text-xs text-purple-700">123 Main Street, NY 10001</p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Checkout Button */}
-                <button className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white py-3 sm:py-4 rounded-xl hover:opacity-90 transition-opacity font-bold text-sm sm:text-base flex items-center justify-center gap-2 mb-3 sm:mb-4">
-                  <ShoppingBag size={18} className="sm:w-5 sm:h-5" />
-                  Proceed to Checkout
-                </button>
-                
-                {/* Continue Shopping Link */}
-                <Link 
-                  to="/" 
-                  className="block text-center text-xs sm:text-sm text-gray-600 hover:text-orange-500 transition-colors font-medium"
-                >
-                  ← Continue Shopping
-                </Link>
+                  {/* Checkout Button */}
+                  <button className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white py-3 sm:py-4 rounded-xl hover:opacity-90 transition-opacity font-bold text-sm sm:text-base flex items-center justify-center gap-2 mb-3 sm:mb-4">
+                    <ShoppingBag size={18} className="sm:w-5 sm:h-5" />
+                    Proceed to Checkout
+                  </button>
+                  
+                  {/* Continue Shopping Link */}
+                  <Link 
+                    to="/" 
+                    className="block text-center text-xs sm:text-sm text-gray-600 hover:text-orange-500 transition-colors font-medium"
+                  >
+                    ← Continue Shopping
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
