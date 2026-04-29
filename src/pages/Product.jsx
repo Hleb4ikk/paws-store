@@ -48,16 +48,32 @@ export default function Product() {
     );
   };
 
+  // Breadcrumb navigation
+  const breadcrumbs = [
+    { label: 'Home', link: '/', isActive: false },
+    { label: product.category, link: null, isActive: false },
+    { label: product.name, link: null, isActive: true }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Breadcrumb */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <nav className="flex items-center gap-2 text-sm text-gray-500">
-          <Link to="/" className="hover:text-orange-500 transition-colors">Home</Link>
-          <ChevronRight size={14} />
-          <span className="hover:text-orange-500 cursor-pointer transition-colors">{product.category}</span>
-          <ChevronRight size={14} />
-          <span className="text-gray-900 font-medium truncate">{product.name}</span>
+          {breadcrumbs.map((crumb, index) => (
+            <div key={index} className="flex items-center gap-2">
+              {crumb.link ? (
+                <Link to={crumb.link} className="hover:text-orange-500 transition-colors">
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span className={`${crumb.isActive ? 'text-gray-900 font-medium truncate' : 'hover:text-orange-500 cursor-pointer transition-colors'}`}>
+                  {crumb.label}
+                </span>
+              )}
+              {index < breadcrumbs.length - 1 && <ChevronRight size={14} />}
+            </div>
+          ))}
         </nav>
       </div>
 
