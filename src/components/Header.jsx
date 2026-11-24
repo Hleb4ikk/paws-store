@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ShoppingCart, PawPrint, Menu, Search, X } from 'lucide-react';
+import { ShoppingCart, PawPrint, Menu, Search, X, User, LogOut } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
   const { totalItems } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const toggleMobileMenu = () => {
@@ -49,6 +51,29 @@ export default function Header() {
                   </span>
                 )}
               </Link>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-2">
+                  <span className="hidden md:flex items-center gap-1.5 text-sm text-gray-700 font-medium">
+                    <User size={16} className="text-gray-500" />
+                    {user.email}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    aria-label="Log out"
+                    title="Log out"
+                  >
+                    <LogOut size={20} className="text-gray-700" />
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="hidden sm:block text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
+                >
+                  Log In
+                </Link>
+              )}
               <button 
                 onClick={toggleMobileMenu}
                 className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors" 

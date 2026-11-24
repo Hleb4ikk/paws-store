@@ -1,9 +1,5 @@
-import { products } from '../data/products';
-
-const MAX_PRICE = Math.max(...products.map(p => p.price));
-
-export default function FilterPanel({ category, setCategory, ratings, setRatings, priceRange, setPriceRange }) {
-  const categories = ['All', ...new Set(products.map(p => p.category))];
+export default function FilterPanel({ category, setCategory, ratings, setRatings, priceRange, setPriceRange, categories = [] }) {
+  const allCategories = ['All', ...categories.map(c => c.name)];
 
   const toggleRating = (r) => {
     setRatings(prev =>
@@ -17,7 +13,7 @@ export default function FilterPanel({ category, setCategory, ratings, setRatings
       <div>
         <h3 className="font-semibold text-gray-900 mb-4">Category</h3>
         <div className="space-y-2">
-          {categories.map(cat => (
+          {allCategories.map(cat => (
             <button
               key={cat}
               onClick={() => setCategory(cat)}
@@ -67,9 +63,8 @@ export default function FilterPanel({ category, setCategory, ratings, setRatings
                   id="min-price"
                   type="number"
                   min="0"
-                  max={MAX_PRICE}
                   value={priceRange?.[0] ?? 0}
-                  onChange={e => setPriceRange?.([Number(e.target.value), priceRange?.[1] ?? MAX_PRICE])}
+                  onChange={e => setPriceRange?.([Number(e.target.value), priceRange?.[1] ?? 0])}
                   className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                 />
               </div>
@@ -83,8 +78,7 @@ export default function FilterPanel({ category, setCategory, ratings, setRatings
                   id="max-price"
                   type="number"
                   min="0"
-                  max={MAX_PRICE}
-                  value={priceRange?.[1] ?? MAX_PRICE}
+                  value={priceRange?.[1] ?? 0}
                   onChange={e => setPriceRange?.([priceRange?.[0] ?? 0, Number(e.target.value)])}
                   className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                 />

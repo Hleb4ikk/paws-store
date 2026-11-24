@@ -1,20 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Minus, Plus, ShoppingCart, ArrowLeft, ArrowRight, Check, Tag, ChevronLeft } from 'lucide-react';
-import { products } from '../data/products';
+import { fetchProduct, fetchProducts } from '../api/products';
 import { useCart } from '../context/CartContext';
 import Stars from '../components/Stars';
 
 export default function Product() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = products.find(p => p.id === Number(id));
   const { addToCart } = useCart();
+
+  const [product, setProduct] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  if (!product) return (
+  useEffect(() => {
+    setLoading(true);
+    setNotFound(false);
+    setCurrentImageIndex(0);
+    setQty(1);
+
+    fetchProduct(id)
+      .then(setProduct)
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+
+    fetchProducts({ limit: 100, sort_by: 'title', order: 'asc' })
+      .then((data) => setAllProducts(data.items))
+      .catch(() => setAllProducts([]));
+  }, [id]);
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <p className="text-gray-500">Loading product...</p>
+    </div>
+  );
+
+  if (notFound || !product) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <p className="text-gray-500 text-lg mb-4">Product not found</p>
@@ -29,21 +56,26 @@ export default function Product() {
     setTimeout(() => setAdded(false), 1500);
   };
 
-  const idx = products.findIndex(p => p.id === product.id);
-  const prev = products[idx - 1];
-  const next = products[idx + 1];
+  const idx = allProducts.findIndex(p => p.id === product.id);
+  const prev = idx > 0 ? allProducts[idx - 1] : null;
+  const next = idx >= 0 && idx < allProducts.length - 1 ? allProducts[idx + 1] : null;
+
+  const related = allProducts
+    .filter(p => p.id !== product.id && p.category === product.category)
+    .concat(allProducts.filter(p => p.id !== product.id && p.category !== product.category))
+    .slice(0, 4);
 
   const images = product.images || [];
   const hasMultipleImages = images.length > 1;
 
   const goToPrevImage = () => {
-    setCurrentImageIndex((prevIndex) => 
+    setCurrentImageIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1
     );
   };
 
   const goToNextImage = () => {
-    setCurrentImageIndex((prevIndex) => 
+    setCurrentImageIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1
     );
   };
@@ -102,7 +134,7 @@ export default function Product() {
                         />
                       ))}
                     </div>
-                    
+
                     {/* Navigation Arrows */}
                     {hasMultipleImages && (
                       <>
@@ -182,7 +214,9 @@ export default function Product() {
             <div className="flex items-center gap-2 mb-4">
               <Stars rating={product.rating} size={18} />
               <span className="text-sm text-gray-500">{product.rating} out of 5 stars</span>
-              <span className="text-sm text-gray-400">({product.reviewCount} reviews)</span>
+              {product.reviewCount > 0 && (
+                <span className="text-sm text-gray-400">({product.reviewCount} reviews)</span>
+              )}
             </div>
 
             {/* Price */}
@@ -281,33 +315,35 @@ export default function Product() {
         </div>
 
         {/* Related products */}
-        <div className="mt-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">You May Also Like</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.filter(p => p.id !== product.id).slice(0, 4).map(p => (
-              <Link
-                key={p.id}
-                to={`/product/${p.id}`}
-                className="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                <div className="aspect-square overflow-hidden bg-gray-50">
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-3">
-                  <p className="text-base font-medium text-gray-900 mb-2 line-clamp-2 text-sm">{p.name}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-orange-500">${p.price.toFixed(2)}</span>
-                    <Stars rating={p.rating} size={12} />
+        {related.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">You May Also Like</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {related.map(p => (
+                <Link
+                  key={p.id}
+                  to={`/product/${p.id}`}
+                  className="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="aspect-square overflow-hidden bg-gray-50">
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
-                </div>
-              </Link>
-            ))}
+                  <div className="p-3">
+                    <p className="text-base font-medium text-gray-900 mb-2 line-clamp-2 text-sm">{p.name}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-orange-500">${p.price.toFixed(2)}</span>
+                      <Stars rating={p.rating} size={12} />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

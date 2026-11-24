@@ -1,49 +1,114 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
+import {
+  fetchCart,
+  addCartItem,
+  updateCartItem,
+  deleteCartItem,
+  applyPromo,
+} from '../api/cart';
 
 const CartContext = createContext();
 
+const normalize = (data) => ({
+  items: data.items.map((item) => ({
+    cartItemId: item.id,
+    id: item.product.id,
+    name: item.product.title,
+    price: Number(item.product.price),
+    image: item.product.images?.[0]?.url || '',
+    category: item.product.category,
+    qty: item.quantity,
+  })),
+  subtotal: data.subtotal,
+});
+
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cart') || '[]'); } catch { return []; }
-  });
+  const { user } = useAuth();
   const { addToast } = useToast();
+  const [cart, setCart] = useState({ items: [], subtotal: 0 });
+  const [loading, setLoading] = useState(false);
 
-  const save = (updated) => {
-    setCart(updated);
-    localStorage.setItem('cart', JSON.stringify(updated));
-  };
-
-  const addToCart = (id, qty = 1, productName) => {
-    const existing = cart.find(i => i.id === id);
-    if (existing) {
-      save(cart.map(i => i.id === id ? { ...i, qty: i.qty + qty } : i));
-    } else {
-      save([...cart, { id, qty }]);
+  useEffect(() => {
+    if (!user) {
+      setCart({ items: [], subtotal: 0 });
+      return;
     }
-    addToast(`${productName || 'Product'} added to cart!`, 'success');
-  };
+    setLoading(true);
+    fetchCart()
+      .then((data) => setCart(normalize(data)))
+      .catch(() => addToast('Failed to load the cart', 'error'))
+      .finally(() => setLoading(false));
+  }, [user]);
 
-  const removeFromCart = (id, productName) => {
-    save(cart.filter(i => i.id !== id));
-    addToast(`${productName || 'Product'} removed from cart`, 'remove');
-  };
+  const addToCart = useCallback(async (productId, qty = 1, productName) => {
+    if (!user) {
+      addToast('Log in to add products to the cart', 'error');
+      return;
+    }
+    try {
+      const data = await addCartItem(productId, qty);
+      setCart(normalize(data));
+      addToast(`${productName || 'Product'} added to cart!`, 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to add to cart', 'error');
+    }
+  }, [user, addToast]);
 
-  const updateQty = (id, qty) => {
-    if (qty < 1) return removeFromCart(id);
-    save(cart.map(i => i.id === id ? { ...i, qty } : i));
-  };
+  const removeFromCart = useCallback(async (cartItemId, productName) => {
+    try {
+      const data = await deleteCartItem(cartItemId);
+      setCart(normalize(data));
+      addToast(`${productName || 'Product'} removed from cart`, 'remove');
+    } catch (err) {
+      addToast(err.message || 'Failed to remove item', 'error');
+    }
+  }, [addToast]);
 
-  const clearCart = () => {
-    save([]);
-    addToast('Cart cleared', 'remove');
-  };
+  const updateQty = useCallback(async (cartItemId, qty, productName) => {
+    if (qty < 1) return removeFromCart(cartItemId, productName);
+    try {
+      const data = await updateCartItem(cartItemId, qty);
+      setCart(normalize(data));
+    } catch (err) {
+      addToast(err.message || 'Failed to update quantity', 'error');
+    }
+  }, [removeFromCart, addToast]);
 
-  const totalItems = cart.reduce((s, i) => s + i.qty, 0);
-  const totalPrice = cart.reduce((s, i) => s + i.qty * (i.price || 0), 0);
+  const clearCart = useCallback(async () => {
+    try {
+      for (const item of cart.items) {
+        await deleteCartItem(item.cartItemId);
+      }
+      setCart({ items: [], subtotal: 0 });
+      addToast('Cart cleared', 'remove');
+    } catch (err) {
+      addToast(err.message || 'Failed to clear the cart', 'error');
+    }
+  }, [cart.items, addToast]);
+
+  const applyPromoCode = useCallback(async (code) => {
+    return applyPromo(code);
+  }, []);
+
+  const totalItems = cart.items.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQty, clearCart, totalItems, totalPrice }}>
+    <CartContext.Provider
+      value={{
+        cart,
+        items: cart.items,
+        subtotal: cart.subtotal,
+        loading,
+        addToCart,
+        removeFromCart,
+        updateQty,
+        clearCart,
+        applyPromoCode,
+        totalItems,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
