@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Trash2, ShoppingBag, Minus, Plus, Tag, Truck, MapPin, ChevronRight, Check } from 'lucide-react';
+import { Trash2, ShoppingBag, Minus, Plus, Tag, Truck, MapPin, ChevronRight, Check, LogIn } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { products } from '../data/products';
 import { useState, useEffect } from 'react';
 
 // Компонент для шагов прогресса
@@ -52,7 +52,7 @@ const CartItem = ({ item, updateQty, removeFromCart }) => (
               <p className="text-xs sm:text-sm text-gray-500">{item.category}</p>
             </div>
             <button
-              onClick={() => removeFromCart(item.id, item.name)}
+              onClick={() => removeFromCart(item.cartItemId, item.name)}
               className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
               aria-label="Remove item"
             >
@@ -66,7 +66,7 @@ const CartItem = ({ item, updateQty, removeFromCart }) => (
           {/* Quantity Controls */}
           <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2">
             <button
-              onClick={() => updateQty(item.id, item.qty - 1)}
+              onClick={() => updateQty(item.cartItemId, item.qty - 1, item.name)}
               className="text-gray-600 hover:text-orange-500 transition-colors"
             >
               <Minus size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -75,7 +75,7 @@ const CartItem = ({ item, updateQty, removeFromCart }) => (
               {item.qty}
             </span>
             <button
-              onClick={() => updateQty(item.id, item.qty + 1)}
+              onClick={() => updateQty(item.cartItemId, item.qty + 1, item.name)}
               className="text-gray-600 hover:text-orange-500 transition-colors"
             >
               <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -139,12 +139,9 @@ const PriceRow = ({ label, value, isDiscount = false, isTotal = false }) => (
 );
 
 export default function Cart() {
-  const { cart, removeFromCart, updateQty } = useCart();
+  const { items, subtotal, removeFromCart, updateQty, applyPromoCode, loading } = useCart();
+  const { isAuthenticated } = useAuth();
   const { addToast } = useToast();
-
-  const items = cart
-    .map(i => { const p = products.find(p => p.id === i.id); return p ? { ...p, qty: i.qty } : null; })
-    .filter(Boolean);
 
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
@@ -161,8 +158,6 @@ export default function Cart() {
     }
   }, []);
 
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  
   // Применяем скидку если есть промокод
   const discount = appliedPromo ? subtotal * (appliedPromo.discount / 100) : 0;
   const subtotalAfterDiscount = subtotal - discount;
@@ -173,9 +168,9 @@ export default function Cart() {
   const freeShippingThreshold = 50;
   const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     const code = promoCode.trim().toUpperCase();
-    
+
     if (!code) {
       addToast('Please enter a promo code', 'error');
       return;
@@ -187,20 +182,20 @@ export default function Cart() {
       return;
     }
 
-    // Проверяем валидность промокода
-    if (code === 'SAVE10') {
+    try {
+      const result = await applyPromoCode(code);
       const promoData = {
-        code: 'SAVE10',
-        discount: 10,
+        code: result.code,
+        discount: result.discount_percentage,
         appliedAt: new Date().toISOString()
       };
-      
+
       setAppliedPromo(promoData);
       localStorage.setItem('appliedPromo', JSON.stringify(promoData));
-      addToast('Promo code SAVE10 applied! You saved 10%', 'promo');
+      addToast(`Promo code ${result.code} applied! You saved ${result.discount_percentage}%`, 'promo');
       setPromoCode('');
-    } else {
-      addToast('Invalid promo code', 'error');
+    } catch (err) {
+      addToast(err.message || 'Invalid promo code', 'error');
     }
   };
 
@@ -245,6 +240,28 @@ export default function Cart() {
     }] : []),
     { label: 'Tax (8%)', value: `$${tax.toFixed(2)}` }
   ];
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-orange-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <LogIn size={40} className="sm:w-12 sm:h-12 text-orange-500" strokeWidth={1.5} />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Log in to see your cart</h2>
+            <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8">Your shopping bag is tied to your account.</p>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white px-6 sm:px-8 py-3 rounded-full hover:opacity-90 transition-opacity font-semibold text-sm sm:text-base"
+            >
+              Log In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
