@@ -36,6 +36,9 @@ export default function Header() {
               <a href="#" className="text-gray-700 hover:text-orange-500 transition-colors text-sm font-medium">New Arrivals</a>
               <a href="#" className="text-gray-700 hover:text-orange-500 transition-colors text-sm font-medium">Best Sellers</a>
               <a href="#" className="text-gray-700 hover:text-orange-500 transition-colors text-sm font-medium">Sale</a>
+              {user?.role === 'ADMIN' && (
+                <NavLink to="/admin" className="text-orange-500 hover:text-orange-600 transition-colors text-sm font-semibold">Admin</NavLink>
+              )}
             </nav>
 
             {/* Right */}

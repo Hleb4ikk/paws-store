@@ -37,3 +37,19 @@ export async function fetchCategories() {
   const data = await api('/products/categories');
   return data.categories;
 }
+
+// --- Admin endpoints (require ADMIN role) ---
+
+export async function createProduct(payload) {
+  const data = await api('/products', { method: 'POST', body: payload, auth: true });
+  return mapProduct(data);
+}
+
+export async function updateProduct(id, payload) {
+  const data = await api(`/products/${id}`, { method: 'PATCH', body: payload, auth: true });
+  return mapProduct(data);
+}
+
+export async function deleteProduct(id) {
+  await api(`/products/${id}`, { method: 'DELETE', auth: true });
+}
