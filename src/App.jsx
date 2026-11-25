@@ -11,6 +11,7 @@ import Cart from './pages/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Admin from './pages/Admin';
+import NotFound from './pages/NotFound';
 import './index.css';
 
 function RequireAdmin({ children }) {
@@ -43,6 +44,7 @@ export default function App() {
                       </RequireAdmin>
                     }
                   />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
               <Footer />
